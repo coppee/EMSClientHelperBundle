@@ -59,11 +59,13 @@ class TranslationHelper
             $messages = $this->getMessages($clientRequest);
 
             foreach ($this->locales as $locale) {
-                $clientCatalog = new MessageCatalogue($locale);
-                $clientCatalog->add($messages[$locale], $clientRequest->getCacheKey());
+                if(isset($messages[$locale])) {
+                    $clientCatalog = new MessageCatalogue($locale);
+                    $clientCatalog->add($messages[$locale], $clientRequest->getCacheKey());
 
-                $catalogue = $this->translator->getCatalogue($locale);
-                $catalogue->addCatalogue($clientCatalog);
+                    $catalogue = $this->translator->getCatalogue($locale);
+                    $catalogue->addCatalogue($clientCatalog);
+                }
             }
         }
     }
