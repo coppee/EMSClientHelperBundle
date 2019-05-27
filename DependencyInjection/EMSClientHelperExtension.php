@@ -7,6 +7,7 @@ use Elasticsearch\Client;
 use EMS\ClientHelperBundle\Helper\Api\Client as ApiClient;
 use EMS\ClientHelperBundle\Helper\Elasticsearch\ClientRequest;
 use EMS\ClientHelperBundle\Helper\Twig\TwigLoader;
+use EMS\CommonBundle\Logger\ElasticsearchLogger;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
@@ -58,6 +59,7 @@ class EMSClientHelperExtension extends Extension
         foreach ($config as $name => $options) {
             $this->defineElasticsearchClient($container, $name, $options);
             $this->defineClientRequest($container, $loader, $name, $options);
+            $this->defineElasticsearchLogger($container, $loader, $name, $options);
 
             if (isset($options['templates'])) {
                 $this->defineTwigLoader($container, $name, $options['templates']);
@@ -98,7 +100,7 @@ class EMSClientHelperExtension extends Extension
             ->setArgument(0, $config)
             ->setPublic(true);
         $definition->addTag('emsch.elasticsearch.client');
-        
+
         $container->setDefinition(sprintf('ems_common.elasticsearch.%s', $name), $definition);
     }
 
@@ -126,6 +128,31 @@ class EMSClientHelperExtension extends Extension
         }
 
         $container->setDefinition(sprintf('emsch.client_request.%s', $name), $definition);
+    }
+
+    /**
+     * @param ContainerBuilder $container
+     * @param XmlFileLoader    $loader
+     * @param string           $name
+     * @param array            $options
+     */
+    private function defineElasticsearchLogger(ContainerBuilder $container, XmlFileLoader $loader, $name, array $options)
+    {
+        $definition = new Definition(ElasticsearchLogger::class);
+        $definition->setArguments([
+            'info',
+            $options['index_prefix'],
+            '',
+            'ems_client_helper',
+            new Reference(sprintf('ems_common.elasticsearch.%s', $name)),
+            new Reference('security.helper'),
+        ]);
+        $definition->addTag('kernel.cache_warmer');
+        $definition->addTag('kernel.event_listener', [
+            'event' => 'kernel.terminate',
+        ]);
+
+        $container->setDefinition(sprintf('emsch.elasticsearch_logger.%s', $name), $definition);
     }
 
     /**
